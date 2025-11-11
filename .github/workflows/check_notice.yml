@@ -1,0 +1,22 @@
+name: Check Notice File
+
+on:
+  push:
+    paths:
+      - 'notice.txt'
+  pull_request:
+    paths:
+      - 'notice.txt'
+
+jobs:
+  check-notice:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify notice.txt
+        run: |
+          if [ ! -s notice.txt ]; then
+            echo "❌ notice.txt 파일이 비어있습니다!"
+            exit 1
+          fi
+          echo "✅ notice.txt 확인 완료!"
