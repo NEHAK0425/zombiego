@@ -1,27 +1,35 @@
+# check_notice.py
 import requests
 from bs4 import BeautifulSoup
 import json
 import os
 
-# 네이버 카페 공지 URL
-NOTICE_URL = "https://cafe.naver.com/f-e/cafes/27131930/menus/1?viewType=L"
-LAST_NOTICE_FILE = "last_notice.json"
+# 1️⃣ Discord 웹훅 URL 직접 입력
+DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1437840874204692540/DvTw1ozfe62zmMQ4cJmPK5rET5BysPR2c486yJMNv6GU6HUl09DDTIWho6V_HC_Znpja"
 
-# Discord 웹훅 URL (GitHub Secrets에서 불러옴)
-DISCORD_WEBHOOK = os.getenv("https://discord.com/api/webhooks/1437840874204692540/DvTw1ozfe62zmMQ4cJmPK5rET5BysPR2c486yJMNv6GU6HUl09DDTIWho6V_HC_Znpja")
+# 2️⃣ 네이버 카페 공지 URL
+NOTICE_URL = "https://cafe.naver.com/f-e/cafes/27131930/menus/1?viewType=L"
+
+# 3️⃣ 이전 공지 저장용 파일
+LAST_NOTICE_FILE = "last_notice.json"
 
 def get_latest_notice():
     headers = {
         "User-Agent": "Mozilla/5.0"
     }
-    res = requests.get(NOTICE_URL, headers=headers)
-    res.raise_for_status()
+    try:
+        res = requests.get(NOTICE_URL, headers=headers)
+        res.raise_for_status()
+    except Exception as e:
+        print(f"❌ 공지 불러오기 실패: {e}")
+        return None
 
     soup = BeautifulSoup(res.text, "html.parser")
 
-    # 공지 목록에서 첫 번째 항목 추출
+    # 공지 목록에서 첫 번째 글 가져오기
     notice_el = soup.select_one(".article-board .board-list .board-notice a")
     if not notice_el:
+        print("❌ 공지 글을 찾을 수 없음")
         return None
 
     title = notice_el.get_text(strip=True)
@@ -42,29 +50,34 @@ def send_to_discord(notice):
     if not DISCORD_WEBHOOK:
         print("❌ Discord 웹훅 URL이 설정되지 않았습니다.")
         return
+
     data = {
         "content": f"📢 **새 공지 올라왔어요!**\n\n📰 {notice['title']}\n🔗 {notice['link']}"
     }
-    res = requests.post(DISCORD_WEBHOOK, json=data)
-    if res.status_code == 204:
-        print("✅ Discord 알림 전송 완료!")
-    else:
-        print(f"⚠️ 전송 실패 ({res.status_code}): {res.text}")
+
+    try:
+        res = requests.post(DISCORD_WEBHOOK, json=data)
+        if res.status_code in [200, 204]:
+            print("✅ Discord 알림 전송 완료!")
+        else:
+            print(f"⚠️ 전송 실패 ({res.status_code}): {res.text}")
+    except Exception as e:
+        print(f"❌ Discord 전송 중 오류 발생: {e}")
 
 def main():
     latest = get_latest_notice()
     if not latest:
-        print("공지 정보를 불러올 수 없습니다.")
         return
 
     last = load_last_notice()
-    if last and latest["title"] == last.get("title"):
-        print("새 공지가 없습니다.")
+    if last and latest["link"] == last.get("link"):
+        print("✅ 새 공지 없음")
         return
 
+    # 새 공지 발견
+    print(f"📢 새 공지 발견: {latest['title']}")
     send_to_discord(latest)
     save_last_notice(latest)
 
 if __name__ == "__main__":
     main()
-
