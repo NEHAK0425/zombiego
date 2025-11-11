@@ -1,37 +1,28 @@
-name: Check Naver Cafe Notice
+name: Naver Notice Checker
 
 on:
   schedule:
-    # UTC 기준으로 설정 (한국은 +9시간)
-    - cron: "0 22,10 * * *"   # 매일 오전 7시(22시 UTC), 오후 7시(10시 UTC)
-  workflow_dispatch:            # 수동 실행도 가능
-
+    # 매일 오전 7시, 오후 7시 (한국 시간)
+    - cron: '0 22 * * *'   # 오전 7시 (KST = UTC+9 → 22시 UTC)
+    - cron: '0 10 * * *'   # 오후 7시 (KST = UTC+9 → 10시 UTC)
+  workflow_dispatch:  # 수동 실행도 가능하게
 jobs:
-  check:
+  check_notice:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: 리포지토리 코드 체크아웃
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Python 설정
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: 필요한 패키지 설치
         run: |
           pip install requests beautifulsoup4
 
-      - name: Run check_notice.py
+      - name: 공지 확인 실행
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: python check_notice.py
-
-      - name: Commit updated last_notice.json
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add last_notice.json
-          git commit -m "Update last notice" || echo "No changes to commit"
-          git push
