@@ -1,22 +1,37 @@
-name: Check Notice File
+name: Check Naver Cafe Notice
 
 on:
-  push:
-    paths:
-      - 'notice.txt'
-  pull_request:
-    paths:
-      - 'notice.txt'
+  schedule:
+    # UTC 기준으로 설정 (한국은 +9시간)
+    - cron: "0 22,10 * * *"   # 매일 오전 7시(22시 UTC), 오후 7시(10시 UTC)
+  workflow_dispatch:            # 수동 실행도 가능
 
 jobs:
-  check-notice:
+  check:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Verify notice.txt
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
         run: |
-          if [ ! -s notice.txt ]; then
-            echo "❌ notice.txt 파일이 비어있습니다!"
-            exit 1
-          fi
-          echo "✅ notice.txt 확인 완료!"
+          pip install requests beautifulsoup4
+
+      - name: Run check_notice.py
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python check_notice.py
+
+      - name: Commit updated last_notice.json
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add last_notice.json
+          git commit -m "Update last notice" || echo "No changes to commit"
+          git push
